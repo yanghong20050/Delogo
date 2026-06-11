@@ -62,7 +62,17 @@ async def startup_event():
 async def ensure_engine_running():
     global iopaint_proc, engine_ready
     if not engine_ready or iopaint_proc is None or iopaint_proc.poll() is not None:
-        device_type = "mps" if sys.platform == "darwin" else "cpu"
+        if sys.platform == "darwin":
+            device_type = "mps"
+        else:
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    device_type = "cuda"
+                else:
+                    device_type = "cpu"
+            except ImportError:
+                device_type = "cpu"
         
         if getattr(sys, 'frozen', False):
             # Bundled mode: spawn ourselves with iopaint_start
