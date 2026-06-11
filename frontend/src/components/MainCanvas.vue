@@ -23,6 +23,24 @@ watch(() => props.initialBboxes, (newVal) => {
 }, { deep: true })
 
 const imgState = ref({ width: 0, height: 0, natWidth: 0, natHeight: 0, xOffset: 0, yOffset: 0 })
+let resizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  window.addEventListener('resize', updateImgState)
+  if (imgRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      updateImgState()
+    })
+    resizeObserver.observe(imgRef.value)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateImgState)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+  }
+})
 
 const updateImgState = () => {
   if (!imgRef.value) return
@@ -132,7 +150,7 @@ onUnmounted(() => {
       <div 
         v-for="(box, idx) in boxes" 
         :key="idx"
-        class="absolute border border-cyan-400/80 bg-slate-900/40 backdrop-blur-[2px] group transition-all duration-200 hover:scale-[1.02] shadow-[0_0_15px_rgba(34,211,238,0.2)] rounded-sm z-10"
+        class="absolute border-2 border-cyan-400 bg-cyan-500/10 shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-colors duration-200 group rounded-sm z-10"
         :style="{
           left: `${imgState.xOffset + box.x * imgState.width}px`,
           top: `${imgState.yOffset + box.y * imgState.height}px`,
@@ -170,15 +188,5 @@ onUnmounted(() => {
         @mouseleave.stop="handleMouseUp"
       ></div>
     </div>
-    
-    <!-- Clear All Button -->
-    <button 
-      v-if="boxes.length > 0"
-      @click.stop="clearAll"
-      class="absolute top-4 right-4 px-3 py-1.5 bg-slate-800/80 hover:bg-red-500/90 text-slate-300 hover:text-white text-xs font-medium rounded-lg border border-slate-600/50 hover:border-red-500 transition-all shadow-lg backdrop-blur flex items-center gap-1"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-      Clear All
-    </button>
   </div>
 </template>
