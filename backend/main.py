@@ -222,7 +222,7 @@ async def process_job(job_id: str, files: list, output_dir: str, bbox: dict, bbo
             }
             
             print(f"[DEBUG] Sending HTTP request to iopaint sidecar for {file_path}")
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(trust_env=False) as client:
                 res = await client.post(
                     "http://127.0.0.1:8080/api/v1/inpaint",
                     json=data_payload,
