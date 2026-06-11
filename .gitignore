@@ -1,0 +1,43 @@
+# Python
+backend/venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Node
+node_modules/
+dist/
+dist-electron/
+*.local
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# History dump
+history_dump/
+dumper*.py
+fix*.py
+
+# Output dirs
+/tmp/delogo_out/
+
+# Temp scripts
+/*.py
+/*.js
+/*.html
+/*.txt
+/*.py.v*
+/*.v*
+/.trash/
+/backup_*/
+/E2E_Test_Report.md
+/tdd.md
+/prd.md
+/ui_design_spec.md
+/delogo_output/
+
