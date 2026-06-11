@@ -173,6 +173,7 @@ const cancelProcess = async () => {
           <MainCanvas 
             v-else
             :image-path="activeFile.path"
+            :initialBboxes="bboxes"
             @bboxesUpdate="(b) => bboxes = b"
           />
         </template>

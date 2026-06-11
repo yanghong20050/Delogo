@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 
-const props = defineProps<{ imagePath: string }>()
+const props = defineProps<{ 
+  imagePath: string
+  initialBboxes?: { x: number, y: number, w: number, h: number }[]
+}>()
 const emit = defineEmits<{ (e: 'bboxesUpdate', bboxes: { x: number, y: number, w: number, h: number }[]): void }>()
 
 const imgRef = ref<HTMLImageElement | null>(null)
@@ -10,7 +13,13 @@ const startX = ref(0)
 const startY = ref(0)
 const currentX = ref(0)
 const currentY = ref(0)
-const boxes = ref<{ x: number, y: number, w: number, h: number }[]>([])
+const boxes = ref<{ x: number, y: number, w: number, h: number }[]>([...(props.initialBboxes || [])])
+
+watch(() => props.initialBboxes, (newVal) => {
+  if (newVal) {
+    boxes.value = [...newVal]
+  }
+}, { deep: true })
 
 const imgState = ref({ width: 0, height: 0, natWidth: 0, natHeight: 0, xOffset: 0, yOffset: 0 })
 
