@@ -29,6 +29,7 @@ class JobRequest(BaseModel):
     input_files: list[str]
     output_dir: str = ""
     bbox: dict = None
+    bboxes: list[dict] = []
 
 @app.websocket("/ws/progress/{job_id}")
 async def websocket_endpoint(websocket: WebSocket, job_id: str):
@@ -51,7 +52,7 @@ async def broadcast_msg(msg: dict):
 @app.post("/api/v1/jobs")
 async def create_job(req: JobRequest, background_tasks: BackgroundTasks):
     job_cancel_flags[req.job_id] = False
-    background_tasks.add_task(process_job, req.job_id, req.input_files, req.output_dir, req.bbox)
+    background_tasks.add_task(process_job, req.job_id, req.input_files, req.output_dir, req.bbox, req.bboxes)
     return {"status": "accepted", "job_id": req.job_id}
 
 @app.post("/api/v1/jobs/{job_id}/cancel")
@@ -59,7 +60,7 @@ async def cancel_job(job_id: str):
     job_cancel_flags[job_id] = True
     return {"status": "cancelled"}
 
-async def process_job(job_id: str, files: list, output_dir: str, bbox: dict):
+async def process_job(job_id: str, files: list, output_dir: str, bbox: dict, bboxes: list):
     await asyncio.sleep(0.5)
     
     if not output_dir:
@@ -93,11 +94,17 @@ async def process_job(job_id: str, files: list, output_dir: str, bbox: dict):
             
             mask = np.zeros((height, width), dtype=np.uint8)
             
-            if bbox:
-                x = int(bbox.get('x', 0) * width)
-                y = int(bbox.get('y', 0) * height)
-                b_w = int(bbox.get('w', 0) * width)
-                b_h = int(bbox.get('h', 0) * height)
+            # Fallback to single bbox if provided but no bboxes list
+            if not bboxes and bbox:
+                target_bboxes = [bbox]
+            else:
+                target_bboxes = bboxes
+            
+            for b in target_bboxes:
+                x = int(b.get('x', 0) * width)
+                y = int(b.get('y', 0) * height)
+                b_w = int(b.get('w', 0) * width)
+                b_h = int(b.get('h', 0) * height)
                 cv2.rectangle(mask, (x, y), (x + b_w, y + b_h), 255, -1)
             
             mask_path = os.path.join("/tmp", f"mask_{job_id}_{i+1}.png")
@@ -116,7 +123,8 @@ async def process_job(job_id: str, files: list, output_dir: str, bbox: dict):
             await proc.communicate()
             print(f"[DEBUG] iopaint CLI completed for {file_path}")
             
-            res_path = os.path.join(output_dir, os.path.basename(file_path))
+            base_name = os.path.splitext(os.path.basename(file_path))[0]
+            res_path = os.path.join(output_dir, f"{base_name}.png")
             
             await broadcast_msg({
                 "status": "file_done",

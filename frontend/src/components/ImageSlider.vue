@@ -10,7 +10,7 @@ const sliderPosition = ref(50)
 </script>
 
 <template>
-  <div class="relative w-full max-h-[80vh] flex justify-center overflow-hidden rounded-lg shadow-2xl user-select-none">
+  <div class="relative w-full h-full flex items-center justify-center overflow-hidden rounded-lg shadow-2xl user-select-none bg-slate-900/50">
     <!-- Base (After Image) -->
     <img 
       :src="`file://${afterImage}`" 

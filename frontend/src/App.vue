@@ -7,7 +7,7 @@ import ImageSlider from './components/ImageSlider.vue'
 const files = ref<{ path: string, status: string, progress: number, resultPath?: string }[]>([])
 const processing = ref(false)
 const selectedIndex = ref<number | null>(null)
-const bbox = ref<{ x: number, y: number, w: number, h: number } | null>(null)
+const bboxes = ref<{ x: number, y: number, w: number, h: number }[]>([])
 const outputDir = ref(localStorage.getItem('delogo_output_dir') || '/tmp/delogo_out')
 const currentJobId = ref<string | null>(null)
 
@@ -45,8 +45,8 @@ const handleDrop = (droppedFiles: FileList) => {
 }
 
 const triggerProcess = async () => {
-  if (files.value.length === 0 || !bbox.value) {
-    alert("Please drop files and draw a box over the watermark.")
+  if (files.value.length === 0 || bboxes.value.length === 0) {
+    alert("Please drop files and draw at least one box over the watermark.")
     return
   }
   const filesToProcess = files.value.filter(f => f.status !== 'completed')
@@ -69,7 +69,7 @@ const triggerProcess = async () => {
         job_id: "job-" + Date.now(),
         input_files: filesToProcess.map(f => f.path),
         output_dir: outputDir.value,
-        bbox: bbox.value
+        bboxes: bboxes.value
       })
     })
     const data = await res.json()
@@ -166,7 +166,7 @@ const cancelProcess = async () => {
           <MainCanvas 
             v-else
             :image-path="activeFile.path"
-            @bboxUpdate="(b) => bbox = b"
+            @bboxesUpdate="(b) => bboxes = b"
           />
         </template>
         <div v-else class="w-full h-full flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-700/50 rounded-xl">
