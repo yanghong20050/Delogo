@@ -6,3 +6,4 @@ iopaint
 opencv-python
 numpy
 httpx
+typer
