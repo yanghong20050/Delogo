@@ -122,11 +122,6 @@ const removeBox = (index: number) => {
   emit('bboxesUpdate', boxes.value)
 }
 
-const clearAll = () => {
-  boxes.value = []
-  emit('bboxesUpdate', boxes.value)
-}
-
 onMounted(() => {
   window.addEventListener('resize', updateImgState)
   setTimeout(updateImgState, 100)

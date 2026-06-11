@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Play, Image as ImageIcon, CheckCircle, Clock, FolderOpen, FileImage, Trash2, Settings2, Loader2 } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { Play, Loader2, Trash2, CheckCircle, Clock, FolderOpen, ImageIcon, Settings2 } from 'lucide-vue-next'
 
 const props = defineProps<{
   files: { path: string, status: string, progress: number, resultPath?: string }[]
@@ -27,8 +27,7 @@ const globalProgress = computed(() => {
 
 const completedCount = computed(() => props.files.filter(f => f.status === 'completed').length)
 
-const fileInputRef = ref<HTMLInputElement | null>(null)
-const dirInputRef = ref<HTMLInputElement | null>(null)
+const isElectron = !!(window as any).process?.versions?.electron
 
 const handleDrop = (e: DragEvent) => {
   e.preventDefault()
@@ -37,14 +36,14 @@ const handleDrop = (e: DragEvent) => {
   }
 }
 
-const { ipcRenderer } = window.require('electron')
-
 const handleFileSelect = async () => {
+  if (!isElectron) return
+  const { ipcRenderer } = (window as any).require('electron')
   try {
     const filePaths = await ipcRenderer.invoke('dialog:openFile')
     if (filePaths && filePaths.length > 0) {
-      const fs = window.require('fs')
-      const path = window.require('path')
+      const fs = (window as any).require('fs')
+      const path = (window as any).require('path')
       
       let allImagePaths: string[] = []
       
@@ -76,6 +75,8 @@ const handleFileSelect = async () => {
 }
 
 const handleChangeOutputDir = async () => {
+  if (!isElectron) return
+  const { ipcRenderer } = (window as any).require('electron')
   try {
     const dirPaths = await ipcRenderer.invoke('dialog:openDirectory')
     if (dirPaths && dirPaths.length > 0) {

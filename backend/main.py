@@ -1,5 +1,18 @@
 import os
 import sys
+import multiprocessing
+
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+    # If the executable is called with "iopaint_start", we route it to iopaint
+    if len(sys.argv) > 1 and sys.argv[1] == "iopaint_start":
+        import runpy
+        # Remove 'iopaint_start' from sys.argv so iopaint parses the rest
+        sys.argv.pop(1)
+        runpy.run_module("iopaint", run_name="__main__", alter_sys=True)
+        sys.exit(0)
+
+
 import uuid
 import json
 import asyncio
@@ -49,11 +62,23 @@ async def startup_event():
 async def ensure_engine_running():
     global iopaint_proc, engine_ready
     if not engine_ready or iopaint_proc is None or iopaint_proc.poll() is not None:
-        cmd = [
-            sys.executable, "-m", "iopaint", "start",
-            "--model=lama", "--device=mps",
-            "--port=8080"
-        ]
+        if getattr(sys, 'frozen', False):
+            # Bundled mode: spawn ourselves with iopaint_start
+            model_dir = os.path.join(sys._MEIPASS, "models")
+            cmd = [
+                sys.executable, "iopaint_start", "start",
+                "--model=lama", "--device=cpu",
+                "--port=8080", "--model-dir", model_dir
+            ]
+        else:
+            # Dev mode: spawn via current python
+            dev_device = "mps" if sys.platform == "darwin" else "cpu"
+            cmd = [
+                sys.executable, "-m", "iopaint", "start",
+                "--model=lama", f"--device={dev_device}",
+                "--port=8080"
+            ]
+            
         print(f"[DEBUG] Lazy loading: Starting iopaint sidecar: {' '.join(cmd)}")
         iopaint_proc = subprocess.Popen(cmd)
         

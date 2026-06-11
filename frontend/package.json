@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "build": "vue-tsc -b && vite build && vue-tsc --project tsconfig.node.json",
+    "preview": "vite preview",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win"
   },
   "dependencies": {
     "@vueuse/core": "^14.3.0",
@@ -22,6 +24,7 @@
     "concurrently": "^10.0.3",
     "cross-env": "^10.1.0",
     "electron": "^42.4.0",
+    "electron-builder": "^26.15.2",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",
@@ -30,5 +33,42 @@
     "vue-tsc": "^3.2.8",
     "wait-on": "^9.0.10"
   },
-  "main": "dist-electron/main.js"
+  "main": "dist-electron/main.js",
+  "build": {
+    "appId": "com.delogo.app",
+    "productName": "Delogo",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dist-engine",
+        "to": "engine",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-setup.${ext}"
+    }
+  }
 }

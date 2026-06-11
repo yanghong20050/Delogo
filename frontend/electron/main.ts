@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { spawn, ChildProcess } from 'node:child_process'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -20,6 +21,27 @@ process.env.VITE_PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.
 let win: BrowserWindow | null
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+
+let backendProcess: ChildProcess | null = null
+
+function startBackend() {
+  if (app.isPackaged) {
+    const isWindows = process.platform === 'win32'
+    const engineName = isWindows ? 'delogo-engine.exe' : 'delogo-engine'
+    const enginePath = path.join(process.resourcesPath, 'engine', engineName)
+    
+    console.log('Starting bundled engine:', enginePath)
+    backendProcess = spawn(enginePath, [], {
+      cwd: path.join(process.resourcesPath, 'engine'),
+      detached: false
+    })
+    
+    backendProcess.stdout?.on('data', (data) => console.log(`[Engine]: ${data}`))
+    backendProcess.stderr?.on('data', (data) => console.error(`[Engine Error]: ${data}`))
+  } else {
+    console.log('Development mode: Please ensure the Python backend is running.')
+  }
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -87,4 +109,13 @@ app.on('activate', () => {
   }
 })
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  startBackend()
+  createWindow()
+})
+
+app.on('will-quit', () => {
+  if (backendProcess) {
+    backendProcess.kill()
+  }
+})

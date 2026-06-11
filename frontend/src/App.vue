@@ -38,7 +38,7 @@ const activeFile = computed(() => {
   return files.value[selectedIndex.value]
 })
 
-const handleDrop = (droppedFiles: FileList) => {
+const handleDrop = (droppedFiles: FileList | File[]) => {
   for (let i = 0; i < droppedFiles.length; i++) {
     const file = droppedFiles[i] as any
     const actualPath = file.path || file.webkitRelativePath

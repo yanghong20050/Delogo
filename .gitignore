@@ -41,3 +41,11 @@ fix*.py
 /ui_design_spec.md
 /delogo_output/
 
+
+# Build artifacts
+frontend/release/
+frontend/dist-engine/
+backend/build/
+backend/dist/
+backend/models/
+
