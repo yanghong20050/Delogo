@@ -15,6 +15,7 @@ const emit = defineEmits<{
   (e: 'update:outputDir', dir: string): void
   (e: 'remove', index: number): void
   (e: 'cancel'): void
+  (e: 'clearAll'): void
 }>()
 
 const globalProgress = computed(() => {
@@ -148,6 +149,19 @@ const handleChangeOutputDir = async () => {
         class="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-colors text-sm font-medium"
       >
         <div class="w-2.5 h-2.5 rounded-sm bg-red-400"></div> Stop Process
+      </button>
+    </div>
+
+    <!-- Queue List Header -->
+    <div class="flex justify-between items-center px-1">
+      <span class="text-xs text-slate-400 font-medium tracking-wide uppercase">Queue List</span>
+      <button 
+        v-if="files.length > 0 && !processing"
+        @click="emit('clearAll')"
+        class="text-xs text-slate-500 hover:text-red-400 transition-colors flex items-center gap-1"
+        title="Clear all files"
+      >
+        <Trash2 class="w-3.5 h-3.5" /> Clear All
       </button>
     </div>
 

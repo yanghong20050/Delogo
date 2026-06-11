@@ -6,6 +6,9 @@ import asyncio
 import cv2
 import numpy as np
 import base64
+import subprocess
+import httpx
+import time
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +26,59 @@ app.add_middleware(
 
 active_connections = []
 job_cancel_flags: dict[str, bool] = {}
+iopaint_proc: subprocess.Popen = None
+engine_ready: bool = False
+last_activity_time = time.time()
+
+async def idle_monitor():
+    global iopaint_proc, engine_ready
+    while True:
+        await asyncio.sleep(10)
+        if engine_ready and (time.time() - last_activity_time > 300):
+            print("[DEBUG] Idle timeout (5 mins) reached. Killing iopaint sidecar to save memory.")
+            if iopaint_proc:
+                iopaint_proc.terminate()
+                iopaint_proc.wait()
+            iopaint_proc = None
+            engine_ready = False
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(idle_monitor())
+
+async def ensure_engine_running():
+    global iopaint_proc, engine_ready
+    if not engine_ready or iopaint_proc is None or iopaint_proc.poll() is not None:
+        cmd = [
+            sys.executable, "-m", "iopaint", "start",
+            "--model=lama", "--device=mps",
+            "--port=8080"
+        ]
+        print(f"[DEBUG] Lazy loading: Starting iopaint sidecar: {' '.join(cmd)}")
+        iopaint_proc = subprocess.Popen(cmd)
+        
+        # Poll the server until it's ready (max 15 seconds)
+        for _ in range(15):
+            try:
+                async with httpx.AsyncClient() as client:
+                    res = await client.get("http://127.0.0.1:8080/", timeout=1.0)
+                    if res.status_code == 200:
+                        engine_ready = True
+                        print("[DEBUG] iopaint sidecar is ready!")
+                        return
+            except httpx.RequestError:
+                pass
+            await asyncio.sleep(1)
+        
+        print("[WARNING] iopaint sidecar did not respond in time, but proceeding anyway.")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global iopaint_proc
+    if iopaint_proc:
+        print("[DEBUG] Terminating iopaint sidecar...")
+        iopaint_proc.terminate()
+        iopaint_proc.wait()
 
 class JobRequest(BaseModel):
     job_id: str
@@ -61,13 +117,17 @@ async def cancel_job(job_id: str):
     return {"status": "cancelled"}
 
 async def process_job(job_id: str, files: list, output_dir: str, bbox: dict, bboxes: list):
-    await asyncio.sleep(0.5)
+    global last_activity_time
+    last_activity_time = time.time()
     
     if not output_dir:
         output_dir = "/tmp/delogo_out"
     os.makedirs(output_dir, exist_ok=True)
         
     await broadcast_msg({"status": "starting_engine", "job_id": job_id})
+    
+    # Lazy load the engine ONLY when the first job arrives
+    await ensure_engine_running()
 
     for i, file_path in enumerate(files):
         if job_cancel_flags.get(job_id, False):
@@ -107,24 +167,45 @@ async def process_job(job_id: str, files: list, output_dir: str, bbox: dict, bbo
                 b_h = int(b.get('h', 0) * height)
                 cv2.rectangle(mask, (x, y), (x + b_w, y + b_h), 255, -1)
             
-            mask_path = os.path.join("/tmp", f"mask_{job_id}_{i+1}.png")
-            cv2.imwrite(mask_path, mask)
+            # Encode image to Base64
+            _, img_encoded = cv2.imencode('.jpg', image)
+            img_b64 = base64.b64encode(img_encoded).decode('utf-8')
             
-            import subprocess
-            cmd = [
-                sys.executable, "-m", "iopaint", "run",
-                "--model=lama", "--device=mps",
-                f"--image={file_path}",
-                f"--mask={mask_path}",
-                f"--output={output_dir}"
-            ]
-            print(f"[DEBUG] Running iopaint CLI: {' '.join(cmd)}")
-            proc = await asyncio.create_subprocess_exec(*cmd)
-            await proc.communicate()
-            print(f"[DEBUG] iopaint CLI completed for {file_path}")
+            # Encode mask to Base64
+            _, mask_encoded = cv2.imencode('.png', mask)
+            mask_b64 = base64.b64encode(mask_encoded).decode('utf-8')
             
-            base_name = os.path.splitext(os.path.basename(file_path))[0]
-            res_path = os.path.join(output_dir, f"{base_name}.png")
+            data_payload = {
+                'image': f"data:image/jpeg;base64,{img_b64}",
+                'mask': f"data:image/png;base64,{mask_b64}",
+                'ldm_steps': 25,
+                'ldm_sampler': 'plms',
+                'hd_strategy': 'Crop',
+                'hd_strategy_crop_margin': 128,
+                'cv2_radius': 4,
+            }
+            
+            print(f"[DEBUG] Sending HTTP request to iopaint sidecar for {file_path}")
+            async with httpx.AsyncClient() as client:
+                res = await client.post(
+                    "http://127.0.0.1:8080/api/v1/inpaint",
+                    json=data_payload,
+                    timeout=120.0
+                )
+                
+                if res.status_code != 200:
+                    raise Exception(f"iopaint server returned {res.status_code}: {res.text}")
+                
+                print(f"[DEBUG] iopaint sidecar returned success for {file_path}")
+                # Decode bytes to image
+                res_img_array = np.frombuffer(res.content, np.uint8)
+                res_img = cv2.imdecode(res_img_array, cv2.IMREAD_COLOR)
+                
+                # Write to disk with exact original extension!
+                res_path = os.path.join(output_dir, os.path.basename(file_path))
+                cv2.imwrite(res_path, res_img)
+            
+            last_activity_time = time.time()
             
             await broadcast_msg({
                 "status": "file_done",

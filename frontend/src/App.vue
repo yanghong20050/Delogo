@@ -25,6 +25,12 @@ const removeFile = (idx: number) => {
   }
 }
 
+const clearAllFiles = () => {
+  files.value = []
+  selectedIndex.value = null
+  bboxes.value = [] // Reset all masks for the new batch
+}
+
 const activeFile = computed(() => {
   if (selectedIndex.value === null || !files.value[selectedIndex.value]) return null
   return files.value[selectedIndex.value]
@@ -154,6 +160,7 @@ const cancelProcess = async () => {
         @update:output-dir="updateOutputDir"
         @remove="removeFile"
         @cancel="cancelProcess"
+        @clearAll="clearAllFiles"
       />
 
       <div class="flex-1 rounded-2xl bg-slate-800/60 backdrop-blur-xl border border-slate-600/30 p-6 min-w-0 min-h-0">
