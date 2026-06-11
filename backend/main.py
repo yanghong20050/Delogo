@@ -91,7 +91,12 @@ async def ensure_engine_running():
             ]
             
         print(f"[DEBUG] Lazy loading: Starting iopaint sidecar: {' '.join(cmd)}")
-        iopaint_proc = subprocess.Popen(cmd)
+        log_dir = os.path.expanduser('~/.delogo')
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, 'delogo-engine.log')
+        log_file = open(log_path, 'a')
+        print(f'[DEBUG] Redirecting iopaint logs to {log_path}')
+        iopaint_proc = subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT)
         
         # Poll the server until it's ready (max 15 seconds)
         for _ in range(15):
