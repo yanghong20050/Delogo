@@ -91,7 +91,11 @@ async def ensure_engine_running():
             ]
             
         print(f"[DEBUG] Lazy loading: Starting iopaint sidecar: {' '.join(cmd)}")
-        log_dir = os.path.expanduser('~/.delogo')
+        if getattr(sys, 'frozen', False):
+            log_dir = os.path.expanduser('~/.delogo')
+        else:
+            log_dir = os.path.dirname(os.path.abspath(__file__))
+            
         os.makedirs(log_dir, exist_ok=True)
         log_path = os.path.join(log_dir, 'delogo-engine.log')
         log_file = open(log_path, 'a')
