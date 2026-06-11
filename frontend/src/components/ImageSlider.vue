@@ -14,29 +14,15 @@ const sliderPosition = ref(50)
     <!-- Base (After Image) -->
     <img 
       :src="`file://${afterImage}`" 
-      class="max-w-full max-h-full object-contain block" 
+      class="w-full h-full object-contain block" 
       draggable="false"
     />
     
     <!-- Overlay (Before Image) clipped -->
-    <div 
-      class="absolute top-0 bottom-0 left-0 overflow-hidden"
-      :style="{ width: `${sliderPosition}%` }"
-    >
-      <img 
-        :src="`file://${beforeImage}`" 
-        class="max-w-none max-h-[80vh] object-contain block h-full w-auto" 
-        :style="{ width: '100vw' /* needs absolute width matching parent, wait better to use clip-path */ }"
-        draggable="false"
-        v-show="false"
-      />
-    </div>
-
-    <!-- Better approach: absolute positioning and clip-path for true 1:1 overlap -->
     <div class="absolute inset-0 flex justify-center items-center pointer-events-none">
        <img 
         :src="`file://${beforeImage}`" 
-        class="max-w-full max-h-full object-contain pointer-events-none" 
+        class="w-full h-full object-contain pointer-events-none" 
         :style="{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }"
         draggable="false"
       />
