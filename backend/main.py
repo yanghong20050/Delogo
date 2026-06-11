@@ -6,7 +6,8 @@ import asyncio
 import cv2
 import numpy as np
 import base64
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -21,6 +22,13 @@ app.add_middleware(
 )
 
 active_connections = []
+job_cancel_flags: dict[str, bool] = {}
+
+class JobRequest(BaseModel):
+    job_id: str
+    input_files: list[str]
+    output_dir: str = ""
+    bbox: dict = None
 
 @app.websocket("/ws/progress/{job_id}")
 async def websocket_endpoint(websocket: WebSocket, job_id: str):
@@ -41,17 +49,18 @@ async def broadcast_msg(msg: dict):
                 pass
 
 @app.post("/api/v1/jobs")
-async def create_job(job_data: dict):
-    asyncio.create_task(process_job(job_data))
-    return {"status": "accepted", "job_id": job_data.get("job_id")}
+async def create_job(req: JobRequest, background_tasks: BackgroundTasks):
+    job_cancel_flags[req.job_id] = False
+    background_tasks.add_task(process_job, req.job_id, req.input_files, req.output_dir, req.bbox)
+    return {"status": "accepted", "job_id": req.job_id}
 
-async def process_job(job_data: dict):
+@app.post("/api/v1/jobs/{job_id}/cancel")
+async def cancel_job(job_id: str):
+    job_cancel_flags[job_id] = True
+    return {"status": "cancelled"}
+
+async def process_job(job_id: str, files: list, output_dir: str, bbox: dict):
     await asyncio.sleep(0.5)
-    
-    job_id = job_data.get("job_id")
-    files = job_data.get("input_files", [])
-    output_dir = job_data.get("output_dir", "")
-    bbox = job_data.get("bbox")
     
     if not output_dir:
         output_dir = "/tmp/delogo_out"
@@ -60,11 +69,19 @@ async def process_job(job_data: dict):
     await broadcast_msg({"status": "starting_engine", "job_id": job_id})
 
     for i, file_path in enumerate(files):
+        if job_cancel_flags.get(job_id, False):
+            print(f"[DEBUG] Job {job_id} was cancelled before processing {file_path}")
+            await broadcast_msg({
+                "status": "cancelled",
+                "job_id": job_id
+            })
+            break
+
         print(f"[DEBUG] Processing file {i+1}: {file_path}")
         await broadcast_msg({
             "status": "processing",
             "job_id": job_id,
-            "progress": int((i / len(files)) * 100),
+            "progress": 50,
             "current_file": os.path.basename(file_path)
         })
         

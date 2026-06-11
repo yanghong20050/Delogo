@@ -9,6 +9,7 @@ const processing = ref(false)
 const selectedIndex = ref<number | null>(null)
 const bbox = ref<{ x: number, y: number, w: number, h: number } | null>(null)
 const outputDir = ref(localStorage.getItem('delogo_output_dir') || '/tmp/delogo_out')
+const currentJobId = ref<string | null>(null)
 
 const updateOutputDir = (dir: string) => {
   outputDir.value = dir
@@ -48,11 +49,16 @@ const triggerProcess = async () => {
     alert("Please drop files and draw a box over the watermark.")
     return
   }
+  const filesToProcess = files.value.filter(f => f.status !== 'completed')
+  if (filesToProcess.length === 0) {
+    alert("All files have already been processed.")
+    return
+  }
+
   processing.value = true
-  files.value.forEach(f => {
+  filesToProcess.forEach(f => {
     f.status = 'queued'
     f.progress = 0
-    f.resultPath = undefined
   })
   
   try {
@@ -61,18 +67,25 @@ const triggerProcess = async () => {
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         job_id: "job-" + Date.now(),
-        input_files: files.value.map(f => f.path),
+        input_files: filesToProcess.map(f => f.path),
         output_dir: outputDir.value,
         bbox: bbox.value
       })
     })
     const data = await res.json()
+    currentJobId.value = data.job_id
     const ws = new WebSocket(`ws://127.0.0.1:8000/ws/progress/${data.job_id}`)
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data)
-      if (msg.status === 'processing' && msg.progress) {
+      // Ignore messages from older cancelled jobs
+      if (msg.job_id !== currentJobId.value) return
+
+      if (msg.status === 'processing') {
         const f = files.value.find(x => x.path.endsWith(msg.current_file))
-        if (f) f.progress = msg.progress
+        if (f) {
+          f.status = 'processing'
+          if (msg.progress !== undefined) f.progress = msg.progress
+        }
       } else if (msg.status === 'file_done') {
         const f = files.value.find(x => x.path === msg.file)
         if (f) {
@@ -86,11 +99,39 @@ const triggerProcess = async () => {
       } else if (msg.status === 'error') {
         processing.value = false
         alert(msg.message)
+      } else if (msg.status === 'cancelled') {
+        processing.value = false
+        files.value.forEach(f => {
+          if (f.status === 'queued' || f.status === 'processing') {
+            f.status = 'cancelled'
+          }
+        })
+        ws.close()
       }
     }
   } catch (e) {
     alert("Failed to start processing: " + e)
     processing.value = false
+  }
+}
+
+const cancelProcess = async () => {
+  if (!currentJobId.value || !processing.value) return
+  
+  // Optimistically update UI
+  processing.value = false
+  files.value.forEach(f => {
+    if (f.status === 'queued' || f.status === 'processing') {
+      f.status = 'cancelled'
+    }
+  })
+  
+  try {
+    await fetch(`http://127.0.0.1:8000/api/v1/jobs/${currentJobId.value}/cancel`, {
+      method: "POST"
+    })
+  } catch (e) {
+    console.error("Failed to cancel job", e)
   }
 }
 </script>
@@ -112,6 +153,7 @@ const triggerProcess = async () => {
         @select="(idx) => selectedIndex = idx"
         @update:output-dir="updateOutputDir"
         @remove="removeFile"
+        @cancel="cancelProcess"
       />
 
       <div class="flex-1 rounded-2xl bg-slate-800/60 backdrop-blur-xl border border-slate-600/30 p-6 min-w-0 min-h-0">
