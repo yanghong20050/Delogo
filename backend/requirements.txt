@@ -7,3 +7,8 @@ opencv-python
 numpy
 httpx
 typer
+loguru
+pydantic
+rich
+torch
+torchvision
