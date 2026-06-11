@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { Trash2 } from 'lucide-vue-next'
 
 const props = defineProps<{ 
   imagePath: string
@@ -127,11 +128,11 @@ onUnmounted(() => {
         class="max-w-full max-h-full object-contain pointer-events-none"
         @load="updateImgState"
       />
-      <!-- Confirmed Boxes -->
-      <div
-        v-for="(box, i) in boxes"
-        :key="i"
-        class="absolute border-2 border-cyan-400 bg-cyan-400/20 pointer-events-auto"
+      <!-- Bounding boxes -->
+      <div 
+        v-for="(box, idx) in boxes" 
+        :key="idx"
+        class="absolute border border-cyan-400/80 bg-slate-900/40 backdrop-blur-[2px] group transition-all duration-200 hover:scale-[1.02] shadow-[0_0_15px_rgba(34,211,238,0.2)] rounded-sm z-10"
         :style="{
           left: `${imgState.xOffset + box.x * imgState.width}px`,
           top: `${imgState.yOffset + box.y * imgState.height}px`,
@@ -139,13 +140,26 @@ onUnmounted(() => {
           height: `${box.h * imgState.height}px`
         }"
       >
+        <div class="absolute inset-0 bg-gradient-to-b from-cyan-400/0 via-cyan-400/10 to-purple-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         <button 
-          @click.stop="removeBox(i)" 
-          class="absolute -top-3 -right-3 w-6 h-6 bg-slate-800 border border-slate-600 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 hover:border-red-500 transition-colors shadow-lg cursor-pointer z-10"
+          @click.stop="removeBox(idx)"
+          class="absolute -top-3 -right-3 bg-slate-800 border border-slate-600 text-slate-300 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-500 hover:text-white hover:border-red-500 shadow-lg hover:scale-110 z-20"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          <Trash2 class="w-3.5 h-3.5" />
         </button>
       </div>
+
+      <!-- Current drawing box -->
+      <div 
+        v-if="isDrawing"
+        class="absolute border border-cyan-400 border-dashed bg-cyan-400/10 pointer-events-none z-20 shadow-[0_0_10px_rgba(34,211,238,0.3)]"
+        :style="{
+          left: `${imgState.xOffset + Math.min(startX, currentX)}px`,
+          top: `${imgState.yOffset + Math.min(startY, currentY)}px`,
+          width: `${Math.abs(currentX - startX)}px`,
+          height: `${Math.abs(currentY - startY)}px`
+        }"
+      ></div>
 
       <!-- Drawing Area Overlay (Mouse events) -->
       <div 
@@ -154,18 +168,6 @@ onUnmounted(() => {
         @mousemove.stop="handleMouseMove"
         @mouseup.stop="handleMouseUp"
         @mouseleave.stop="handleMouseUp"
-      ></div>
-
-      <!-- Currently Drawn Box (Preview) -->
-      <div
-        v-if="isDrawing && (startX !== currentX || startY !== currentY)"
-        class="absolute border-2 border-blue-400 bg-blue-400/20 pointer-events-none z-10"
-        :style="{
-          left: `${imgState.xOffset + Math.min(startX, currentX)}px`,
-          top: `${imgState.yOffset + Math.min(startY, currentY)}px`,
-          width: `${Math.abs(currentX - startX)}px`,
-          height: `${Math.abs(currentY - startY)}px`
-        }"
       ></div>
     </div>
     

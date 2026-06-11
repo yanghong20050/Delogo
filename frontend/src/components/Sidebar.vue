@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Play, Image as ImageIcon, CheckCircle, Clock, FolderOpen, FileImage, Trash2, Settings2 } from 'lucide-vue-next'
+import { Play, Image as ImageIcon, CheckCircle, Clock, FolderOpen, FileImage, Trash2, Settings2, Loader2 } from 'lucide-vue-next'
 
 const props = defineProps<{
   files: { path: string, status: string, progress: number, resultPath?: string }[]
   processing: boolean
+  engineState: 'idle' | 'warming' | 'processing'
   outputDir: string
 }>()
 
@@ -133,22 +134,33 @@ const handleChangeOutputDir = async () => {
       </button>
     </div>
     
-    <div v-else class="flex flex-col gap-3 p-4 rounded-xl border border-slate-700 bg-slate-800/80">
-      <div class="flex justify-between items-end">
+    <div v-else-if="engineState === 'idle' || engineState === 'warming'" class="flex">
+      <div class="w-full rounded-full px-6 py-4 font-medium shadow-[0_0_20px_rgba(34,211,238,0.2)] flex items-center justify-center gap-3 bg-slate-800/80 border border-cyan-500/40 relative overflow-hidden">
+        <div class="absolute inset-0 bg-cyan-400/5 animate-pulse"></div>
+        <Loader2 class="w-5 h-5 animate-spin text-cyan-400 relative z-10" />
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 font-bold relative z-10 tracking-wide">Warming up AI Engine... ⚡️</span>
+      </div>
+    </div>
+
+    <div v-else class="flex flex-col gap-3 p-4 rounded-xl border border-slate-700 bg-slate-800/80 shadow-[0_0_30px_rgba(168,85,247,0.15)] relative overflow-hidden">
+      <div class="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500"></div>
+      <div class="flex justify-between items-end relative z-10">
         <div class="flex flex-col gap-1">
           <span class="text-xs text-slate-400 font-medium tracking-wide uppercase">Batch Progress</span>
           <span class="text-xl font-bold text-slate-100">{{ completedCount }} <span class="text-sm text-slate-500 font-normal">/ {{ files.length }}</span></span>
         </div>
-        <span class="text-sm font-medium text-cyan-400">{{ globalProgress }}%</span>
+        <span class="text-sm font-bold text-cyan-400">{{ globalProgress }}%</span>
       </div>
-      <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden">
-        <div class="h-full bg-gradient-to-r from-cyan-400 to-purple-500 transition-all duration-300" :style="{ width: `${globalProgress}%` }"></div>
+      <div class="h-2.5 w-full bg-slate-900/80 rounded-full overflow-hidden shadow-inner relative z-10 border border-slate-700/50">
+        <div class="h-full bg-gradient-to-r from-cyan-400 to-purple-500 transition-all duration-300 relative" :style="{ width: `${globalProgress}%` }">
+          <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
+        </div>
       </div>
       <button 
         @click="emit('cancel')"
-        class="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-colors text-sm font-medium"
+        class="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all text-sm font-bold tracking-wide relative z-10 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)]"
       >
-        <div class="w-2.5 h-2.5 rounded-sm bg-red-400"></div> Stop Process
+        <div class="w-2.5 h-2.5 rounded-sm bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div> Stop Process
       </button>
     </div>
 
@@ -166,7 +178,7 @@ const handleChangeOutputDir = async () => {
     </div>
 
     <!-- Queue List -->
-    <div class="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+    <TransitionGroup name="list" tag="div" class="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar pb-4 relative">
       <div 
         v-for="(file, idx) in files" 
         :key="file.path"
@@ -198,12 +210,12 @@ const handleChangeOutputDir = async () => {
         <!-- Progress Bar (Thin line at bottom) -->
         <div class="absolute bottom-0 left-0 h-1 bg-slate-700 w-full">
           <div 
-            class="h-full bg-gradient-to-r from-cyan-400 to-purple-500 transition-all duration-300 ease-out"
+            class="h-full bg-cyan-400 transition-all duration-300"
             :style="{ width: `${file.progress}%` }"
           ></div>
         </div>
       </div>
-    </div>
+    </TransitionGroup>
   </div>
 </template>
 
@@ -215,7 +227,33 @@ const handleChangeOutputDir = async () => {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #334155;
+  background: #334155;
   border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* TransitionGroup animations */
+.list-move, /* apply transition to moving elements */
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.list-enter-from {
+  opacity: 0;
+  transform: translateY(15px);
+}
+
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+/* ensure leaving items are taken out of layout flow so that moving
+   animations can be calculated correctly. */
+.list-leave-active {
+  position: absolute;
 }
 </style>

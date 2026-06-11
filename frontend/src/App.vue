@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import Sidebar from './components/Sidebar.vue'
 import MainCanvas from './components/MainCanvas.vue'
 import ImageSlider from './components/ImageSlider.vue'
+import { Image as ImageIcon } from 'lucide-vue-next'
 
 const files = ref<{ path: string, status: string, progress: number, resultPath?: string }[]>([])
 const processing = ref(false)
@@ -10,6 +11,7 @@ const selectedIndex = ref<number | null>(null)
 const bboxes = ref<{ x: number, y: number, w: number, h: number }[]>([])
 const outputDir = ref(localStorage.getItem('delogo_output_dir') || '/tmp/delogo_out')
 const currentJobId = ref<string | null>(null)
+const engineState = ref<'idle'|'warming'|'processing'>('idle')
 
 const updateOutputDir = (dir: string) => {
   outputDir.value = dir
@@ -62,6 +64,7 @@ const triggerProcess = async () => {
   }
 
   processing.value = true
+  engineState.value = 'idle' // Will be updated by WS
   filesToProcess.forEach(f => {
     f.status = 'queued'
     f.progress = 0
@@ -86,7 +89,10 @@ const triggerProcess = async () => {
       // Ignore messages from older cancelled jobs
       if (msg.job_id !== currentJobId.value) return
 
-      if (msg.status === 'processing') {
+      if (msg.status === 'starting_engine') {
+        engineState.value = 'warming'
+      } else if (msg.status === 'processing') {
+        engineState.value = 'processing'
         const f = files.value.find(x => x.path.endsWith(msg.current_file))
         if (f) {
           f.status = 'processing'
@@ -104,9 +110,11 @@ const triggerProcess = async () => {
         ws.close()
       } else if (msg.status === 'error') {
         processing.value = false
+        engineState.value = 'idle'
         alert(msg.message)
       } else if (msg.status === 'cancelled') {
         processing.value = false
+        engineState.value = 'idle'
         files.value.forEach(f => {
           if (f.status === 'queued' || f.status === 'processing') {
             f.status = 'cancelled'
@@ -126,6 +134,7 @@ const cancelProcess = async () => {
   
   // Optimistically update UI
   processing.value = false
+  engineState.value = 'idle'
   files.value.forEach(f => {
     if (f.status === 'queued' || f.status === 'processing') {
       f.status = 'cancelled'
@@ -153,6 +162,7 @@ const cancelProcess = async () => {
       <Sidebar 
         :files="files" 
         :processing="processing"
+        :engine-state="engineState"
         :output-dir="outputDir"
         @drop="handleDrop"
         @start="triggerProcess"
@@ -177,9 +187,15 @@ const cancelProcess = async () => {
             @bboxesUpdate="(b) => bboxes = b"
           />
         </template>
-        <div v-else class="w-full h-full flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-700/50 rounded-xl">
-          <div class="text-6xl mb-4">🖼️</div>
-          <p class="text-lg">Select an image to preview</p>
+        <div 
+          v-else 
+          class="w-full h-full flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-600 bg-slate-800/60 backdrop-blur-xl rounded-2xl transition-all hover:border-cyan-400 hover:bg-cyan-400/5"
+          @dragover.prevent
+          @drop.prevent="(e) => e.dataTransfer?.files && handleDrop(e.dataTransfer.files)"
+        >
+          <ImageIcon class="w-16 h-16 text-slate-500 mb-6 drop-shadow-lg" />
+          <p class="text-2xl font-semibold text-slate-300 tracking-wide mb-2">Drag & Drop Images Here</p>
+          <p class="text-sm text-slate-500">Unleash the magic to remove watermarks instantly</p>
         </div>
       </div>
     </div>
