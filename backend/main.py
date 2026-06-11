@@ -62,20 +62,21 @@ async def startup_event():
 async def ensure_engine_running():
     global iopaint_proc, engine_ready
     if not engine_ready or iopaint_proc is None or iopaint_proc.poll() is not None:
+        device_type = "mps" if sys.platform == "darwin" else "cpu"
+        
         if getattr(sys, 'frozen', False):
             # Bundled mode: spawn ourselves with iopaint_start
             model_dir = os.path.join(sys._MEIPASS, "models")
             cmd = [
                 sys.executable, "iopaint_start", "start",
-                "--model=lama", "--device=cpu",
+                "--model=lama", f"--device={device_type}",
                 "--port=8080", "--model-dir", model_dir
             ]
         else:
             # Dev mode: spawn via current python
-            dev_device = "mps" if sys.platform == "darwin" else "cpu"
             cmd = [
                 sys.executable, "-m", "iopaint", "start",
-                "--model=lama", f"--device={dev_device}",
+                "--model=lama", f"--device={device_type}",
                 "--port=8080"
             ]
             
