@@ -63,7 +63,7 @@ def main():
     print("--- Building Electron App ---")
     # tsc will compile main.ts to dist-electron
     # electron-builder will read package.json
-    build_cmd = "npm run build:electron" if is_windows else "npm run build:mac"
+    build_cmd = "npm run build:win" if is_windows else "npm run build:mac"
     run_cmd(build_cmd, cwd=frontend_dir)
     
     print(f"🎉 Build successfully completed for {system}!")
