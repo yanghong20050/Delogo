@@ -2,13 +2,18 @@
 
 block_cipher = None
 
+from PyInstaller.utils.hooks import collect_data_files
+
+custom_datas = [
+    ('models', 'models')  # This bundles the entire 'models' directory into sys._MEIPASS/models
+]
+custom_datas += collect_data_files('iopaint')
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('models', 'models')  # This bundles the entire 'models' directory into sys._MEIPASS/models
-    ],
+    datas=custom_datas,
     hiddenimports=[
         'uvicorn.logging',
         'uvicorn.loops',
