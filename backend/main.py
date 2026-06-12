@@ -6,10 +6,10 @@ if __name__ == '__main__':
     multiprocessing.freeze_support()
     # If the executable is called with "iopaint_start", we route it to iopaint
     if len(sys.argv) > 1 and sys.argv[1] == "iopaint_start":
-        import runpy
         # Remove 'iopaint_start' from sys.argv so iopaint parses the rest
         sys.argv.pop(1)
-        runpy.run_module("iopaint", run_name="__main__", alter_sys=True)
+        from iopaint.cli import start
+        start()
         sys.exit(0)
 
 
@@ -103,8 +103,8 @@ async def ensure_engine_running():
         print(f'[DEBUG] Redirecting iopaint logs to {log_path}')
         iopaint_proc = subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT)
         
-        # Poll the server until it's ready (max 15 seconds)
-        for _ in range(15):
+        # Poll the server until it's ready (max 60 seconds)
+        for _ in range(60):
             try:
                 async with httpx.AsyncClient() as client:
                     res = await client.get("http://127.0.0.1:8080/", timeout=1.0)
@@ -116,7 +116,7 @@ async def ensure_engine_running():
                 pass
             await asyncio.sleep(1)
         
-        print("[WARNING] iopaint sidecar did not respond in time, but proceeding anyway.")
+        print("[WARNING] iopaint sidecar did not respond in 60 seconds, but proceeding anyway.")
 
 @app.on_event("shutdown")
 async def shutdown_event():
