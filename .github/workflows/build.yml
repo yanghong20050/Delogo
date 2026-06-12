@@ -76,9 +76,9 @@ jobs:
     - name: Download Lama Model
       shell: bash
       run: |
-        mkdir -p backend/models
+        mkdir -p backend/models/torch/hub/checkpoints
         echo "Downloading big-lama.pt model..."
-        curl -L -o backend/models/big-lama.pt "https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt"
+        curl -L -o backend/models/torch/hub/checkpoints/big-lama.pt "https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt"
 
     - name: Build Application
       shell: bash
