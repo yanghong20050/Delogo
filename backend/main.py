@@ -50,6 +50,17 @@ import base64
 import subprocess
 import httpx
 import time
+import ssl
+
+# Globally bypass SSL verification. This fixes the 'SSLCertVerificationError' on Windows 
+# when the iopaint engine attempts to automatically download missing models in the source code environment.
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
