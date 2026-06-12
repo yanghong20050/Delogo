@@ -84,10 +84,11 @@ async def ensure_engine_running():
             ]
         else:
             # Dev mode: spawn via current python
+            dev_model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
             cmd = [
                 sys.executable, "-m", "iopaint", "start",
                 "--model=lama", f"--device={device_type}",
-                "--port=8080"
+                "--port=8080", "--model-dir", dev_model_dir
             ]
             
         print(f"[DEBUG] Lazy loading: Starting iopaint sidecar: {' '.join(cmd)}")
