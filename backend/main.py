@@ -9,6 +9,27 @@ if __name__ == '__main__':
         # Remove 'iopaint_start' from sys.argv so iopaint parses the rest
         sys.argv.pop(1)
         
+        # --- WATCHDOG: Suicide if parent dies ---
+        import threading
+        import time
+        import os
+        
+        parent_pid = os.environ.get("DELOGO_PARENT_PID")
+        if parent_pid:
+            parent_pid = int(parent_pid)
+            def parent_watchdog():
+                while True:
+                    try:
+                        os.kill(parent_pid, 0)
+                    except OSError:
+                        # Parent process is gone. Self-destruct immediately to prevent memory leaks.
+                        os._exit(0)
+                    time.sleep(3)
+            
+            t = threading.Thread(target=parent_watchdog, daemon=True)
+            t.start()
+        # ----------------------------------------
+        
         # In PyInstaller > 6.0, _internal cannot receive datas directly.
         # They are placed in bundle root. We must copy them to _internal/iopaint so __file__ resolves correctly.
         if getattr(sys, 'frozen', False):
@@ -125,6 +146,10 @@ async def ensure_engine_running():
             except ImportError:
                 device_type = "cpu"
         
+        # Inject parent PID so the sidecar can monitor our survival
+        env = os.environ.copy()
+        env["DELOGO_PARENT_PID"] = str(os.getpid())
+        
         if getattr(sys, 'frozen', False):
             # Bundled mode: spawn ourselves with iopaint_start
             bundle_root = os.path.dirname(sys._MEIPASS)
@@ -135,15 +160,14 @@ async def ensure_engine_running():
                 "--port=8080", "--model-dir", model_dir
             ]
         else:
-            # Dev mode: spawn via current python
+            # Dev mode: spawn via current python, but route through our interceptor to get the watchdog
             dev_model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
             cmd = [
-                sys.executable, "-m", "iopaint", "start",
+                sys.executable, os.path.abspath(__file__), "iopaint_start", "start",
                 "--model=lama", f"--device={device_type}",
                 "--port=8080", "--model-dir", dev_model_dir
             ]
             
-        print(f"[DEBUG] Lazy loading: Starting iopaint sidecar: {' '.join(cmd)}")
         if getattr(sys, 'frozen', False):
             log_dir = os.path.expanduser('~/.delogo')
         else:
@@ -153,7 +177,7 @@ async def ensure_engine_running():
         log_path = os.path.join(log_dir, 'delogo-engine.log')
         log_file = open(log_path, 'a')
         print(f'[DEBUG] Redirecting iopaint logs to {log_path}')
-        iopaint_proc = subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT)
+        iopaint_proc = subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, env=env)
         
         # Poll the server until it's ready (max 60 seconds)
         for _ in range(60):
