@@ -1,0 +1,54 @@
+name: Build Delogo App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install Python Dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install -r backend/requirements.txt
+
+    - name: Download Lama Model
+      shell: bash
+      run: |
+        mkdir -p backend/models
+        echo "Downloading big-lama.pt model..."
+        curl -L -o backend/models/big-lama.pt "https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt"
+
+    - name: Build Application
+      shell: bash
+      run: |
+        python scripts/build.py
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Delogo-Release-${{ matrix.os }}
+        path: frontend/release/*
+        retention-days: 7
