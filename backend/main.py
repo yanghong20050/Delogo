@@ -19,11 +19,18 @@ if __name__ == '__main__':
             parent_pid = int(parent_pid)
             def parent_watchdog():
                 while True:
-                    try:
-                        os.kill(parent_pid, 0)
-                    except OSError:
-                        # Parent process is gone. Self-destruct immediately to prevent memory leaks.
-                        os._exit(0)
+                    if os.name == 'nt':
+                        import ctypes
+                        # PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+                        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, parent_pid)
+                        if not handle:
+                            os._exit(0)
+                        ctypes.windll.kernel32.CloseHandle(handle)
+                    else:
+                        try:
+                            os.kill(parent_pid, 0)
+                        except OSError:
+                            os._exit(0)
                     time.sleep(3)
             
             t = threading.Thread(target=parent_watchdog, daemon=True)
@@ -124,7 +131,7 @@ async def ensure_engine_running():
     
     # 1. First, check if an orphaned sidecar is ALREADY running on port 8080 from a previous run
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(trust_env=False) as client:
             res = await client.get("http://127.0.0.1:8080/", timeout=1.0)
             if res.status_code == 200:
                 engine_ready = True
@@ -182,7 +189,7 @@ async def ensure_engine_running():
         # Poll the server until it's ready (max 60 seconds)
         for _ in range(60):
             try:
-                async with httpx.AsyncClient() as client:
+                async with httpx.AsyncClient(trust_env=False) as client:
                     res = await client.get("http://127.0.0.1:8080/", timeout=1.0)
                     if res.status_code == 200:
                         engine_ready = True
