@@ -8,6 +8,26 @@ if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == "iopaint_start":
         # Remove 'iopaint_start' from sys.argv so iopaint parses the rest
         sys.argv.pop(1)
+        
+        # In PyInstaller > 6.0, _internal cannot receive datas directly.
+        # They are placed in bundle root. We must copy them to _internal/iopaint so __file__ resolves correctly.
+        if getattr(sys, 'frozen', False):
+            import os
+            import shutil
+            bundle_root = os.path.dirname(sys._MEIPASS)
+            src_iopaint = os.path.join(bundle_root, "iopaint")
+            dest_iopaint = os.path.join(sys._MEIPASS, "iopaint")
+            if os.path.exists(src_iopaint):
+                os.makedirs(dest_iopaint, exist_ok=True)
+                for item in os.listdir(src_iopaint):
+                    s = os.path.join(src_iopaint, item)
+                    d = os.path.join(dest_iopaint, item)
+                    if not os.path.exists(d):
+                        if os.path.isdir(s):
+                            shutil.copytree(s, d)
+                        else:
+                            shutil.copy2(s, d)
+                            
         from iopaint import entry_point
         sys.exit(entry_point())
 
@@ -96,7 +116,8 @@ async def ensure_engine_running():
         
         if getattr(sys, 'frozen', False):
             # Bundled mode: spawn ourselves with iopaint_start
-            model_dir = os.path.join(sys._MEIPASS, "models")
+            bundle_root = os.path.dirname(sys._MEIPASS)
+            model_dir = os.path.join(bundle_root, "models")
             cmd = [
                 sys.executable, "iopaint_start", "start",
                 "--model=lama", f"--device={device_type}",
