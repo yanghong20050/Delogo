@@ -4,9 +4,7 @@ block_cipher = None
 
 from PyInstaller.utils.hooks import collect_data_files
 
-custom_datas = [
-    ('models', 'models')  # Place models in bundle root
-]
+custom_datas = []
 
 # iopaint expects its static files (web_app, configs) to be alongside its code (__file__)
 # PyInstaller > 6 places them at the bundle root by default. We will copy them into _internal at runtime.

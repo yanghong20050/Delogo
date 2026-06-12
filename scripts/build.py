@@ -59,6 +59,30 @@ def main():
         shutil.rmtree(engine_dest)
     shutil.copytree(engine_src, engine_dest)
     
+    # 4.1. Manually copy models to bypass PyInstaller datas limitations
+    print("--- Copying AI Models ---")
+    models_src = os.path.join(backend_dir, "models")
+    models_dest = os.path.join(engine_dest, "models")
+    if os.path.exists(models_src):
+        if not os.path.exists(models_dest):
+            shutil.copytree(models_src, models_dest)
+        else:
+            shutil.copytree(models_src, models_dest, dirs_exist_ok=True)
+            
+    # 4.2. Fix PyInstaller >6 issue: move iopaint datas from root to _internal
+    print("--- Fixing iopaint internal paths ---")
+    engine_internal_iopaint = os.path.join(engine_dest, "_internal", "iopaint")
+    engine_root_iopaint = os.path.join(engine_dest, "iopaint")
+    if os.path.exists(engine_root_iopaint) and os.path.exists(engine_internal_iopaint):
+        for item in os.listdir(engine_root_iopaint):
+            s = os.path.join(engine_root_iopaint, item)
+            d = os.path.join(engine_internal_iopaint, item)
+            if not os.path.exists(d):
+                if os.path.isdir(s):
+                    shutil.copytree(s, d)
+                else:
+                    shutil.copy2(s, d)
+                    
     # 5. Build Electron App
     print("--- Building Electron App ---")
     # tsc will compile main.ts to dist-electron
