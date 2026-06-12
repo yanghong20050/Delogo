@@ -66,7 +66,7 @@ def main():
     build_cmd = "npm run build:win" if is_windows else "npm run build:mac"
     run_cmd(build_cmd, cwd=frontend_dir)
     
-    print(f"🎉 Build successfully completed for {system}!")
+    print(f"Build successfully completed for {system}!")
     print(f"Check frontend/release/ directory for the installation package.")
 
 if __name__ == "__main__":
