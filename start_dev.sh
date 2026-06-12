@@ -10,7 +10,11 @@ trap "kill 0" EXIT
 echo "Starting FastAPI backend..."
 cd backend
 python3 -m venv venv
-source venv/bin/activate
+if [ -f "venv/Scripts/activate" ]; then
+    source venv/Scripts/activate
+else
+    source venv/bin/activate
+fi
 pip install -r requirements.txt
 python main.py &
 cd ..
