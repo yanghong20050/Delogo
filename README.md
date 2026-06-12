@@ -65,12 +65,12 @@ python scripts/build.py
 
 ### 3. 云端工厂自动化打包 (GitHub Actions CI/CD)
 
-对于公开仓库，您完全可以将繁重的打包工作交给 GitHub 的免费云端服务器：
-1. 点击本仓库顶部的 **Actions** 标签。
+对于**项目维护者**或**Fork 了本仓库的开发者**，您可以完全将繁重的打包工作交给 GitHub 的免费云端服务器：
+1. 点击您仓库顶部的 **Actions** 标签。
 2. 选择左侧的 **Build Delogo App**。
 3. 点击右侧的 **Run workflow**：
    - 您可以选择目标操作系统（`windows-latest` / `macos-latest` / `both`）。
-   - **(推荐)** 在 `Release Version` 框中填入版本号（如 `v1.0.0`），云端工厂会自动拉取依赖、内置 AI 模型、注入版本号进行打包，并最终将纯净的安装包自动发布至您的 Releases 页面供全世界下载。
+   - **(推荐)** 在 `Release Version` 框中填入版本号（如 `v1.0.0`），云端工厂会自动拉取依赖、内置 AI 模型、注入版本号进行打包，并最终将纯净的安装包自动发布至您仓库的 Releases 页面供全世界下载。
 
 ## 📅 ROADMAP
 
