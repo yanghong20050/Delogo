@@ -1,15 +1,40 @@
 name: Build Delogo App
 
 on:
-  workflow_dispatch: # Allows manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      target_os:
+        description: 'Choose Target OS to Build'
+        required: true
+        default: 'windows-latest'
+        type: choice
+        options:
+          - windows-latest
+          - macos-latest
+          - both
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        run: |
+          if [ "${{ github.event.inputs.target_os }}" == "both" ]; then
+            echo "matrix=[\"windows-latest\", \"macos-latest\"]" >> $GITHUB_OUTPUT
+          else
+            echo "matrix=[\"${{ github.event.inputs.target_os }}\"]" >> $GITHUB_OUTPUT
+          fi
+
   build:
+    needs: setup
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: ${{ fromJson(needs.setup.outputs.matrix) }}
 
     steps:
     - name: Checkout Code
