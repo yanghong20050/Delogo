@@ -8,9 +8,8 @@ if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == "iopaint_start":
         # Remove 'iopaint_start' from sys.argv so iopaint parses the rest
         sys.argv.pop(1)
-        from iopaint.cli import start
-        start()
-        sys.exit(0)
+        from iopaint import entry_point
+        sys.exit(entry_point())
 
 
 import uuid
