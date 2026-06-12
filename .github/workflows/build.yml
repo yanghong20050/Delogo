@@ -12,6 +12,14 @@ on:
           - windows-latest
           - macos-latest
           - both
+      version_tag:
+        description: 'Release Version (e.g. v1.0.0). Leave empty to test build without publishing.'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
   setup:
@@ -75,3 +83,14 @@ jobs:
         name: Delogo-Release-${{ matrix.os }}
         path: frontend/release/*
         retention-days: 7
+
+    - name: Publish to GitHub Releases
+      if: ${{ github.event.inputs.version_tag != '' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event.inputs.version_tag }}
+        name: Release ${{ github.event.inputs.version_tag }}
+        files: |
+          frontend/release/*.exe
+          frontend/release/*.dmg
+          frontend/release/*.zip
