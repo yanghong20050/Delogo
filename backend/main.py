@@ -11,6 +11,15 @@ if __name__ == '__main__':
         from iopaint import entry_point
         sys.exit(entry_point())
 
+if getattr(sys, 'frozen', False):
+    import os
+    log_dir = os.path.expanduser('~/.delogo')
+    os.makedirs(log_dir, exist_ok=True)
+    backend_log_path = os.path.join(log_dir, 'delogo-backend.log')
+    sys.stdout = open(backend_log_path, 'a', buffering=1)
+    sys.stderr = sys.stdout
+    print("\\n\\n=== DELOGO BACKEND STARTED ===")
+
 
 import uuid
 import json
@@ -60,6 +69,18 @@ async def startup_event():
 
 async def ensure_engine_running():
     global iopaint_proc, engine_ready
+    
+    # 1. First, check if an orphaned sidecar is ALREADY running on port 8080 from a previous run
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.get("http://127.0.0.1:8080/", timeout=1.0)
+            if res.status_code == 200:
+                engine_ready = True
+                print("[DEBUG] Found existing orphaned iopaint sidecar on port 8080, reusing it!")
+                return
+    except httpx.RequestError:
+        pass # Port 8080 is free, proceed to spawn
+
     if not engine_ready or iopaint_proc is None or iopaint_proc.poll() is not None:
         if sys.platform == "darwin":
             device_type = "mps"
@@ -192,9 +213,11 @@ async def process_job(job_id: str, files: list, output_dir: str, bbox: dict, bbo
         })
         
         try:
-            image = cv2.imread(file_path)
+            # Fix: cv2.imread fails on Windows with Chinese characters in path
+            img_array = np.fromfile(file_path, dtype=np.uint8)
+            image = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
             if image is None:
-                continue
+                raise Exception(f"Failed to read image (might be invalid format): {file_path}")
             height, width = image.shape[:2]
             
             mask = np.zeros((height, width), dtype=np.uint8)
@@ -246,9 +269,13 @@ async def process_job(job_id: str, files: list, output_dir: str, bbox: dict, bbo
                 res_img_array = np.frombuffer(res.content, np.uint8)
                 res_img = cv2.imdecode(res_img_array, cv2.IMREAD_COLOR)
                 
-                # Write to disk with exact original extension!
+                # Write to disk with exact original extension, supporting Chinese paths!
                 res_path = os.path.join(output_dir, os.path.basename(file_path))
-                cv2.imwrite(res_path, res_img)
+                is_success, im_buf_arr = cv2.imencode('.png', res_img)
+                if is_success:
+                    im_buf_arr.tofile(res_path)
+                else:
+                    raise Exception(f"Failed to encode output image")
             
             last_activity_time = time.time()
             

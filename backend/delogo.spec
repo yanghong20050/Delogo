@@ -5,9 +5,13 @@ block_cipher = None
 from PyInstaller.utils.hooks import collect_data_files
 
 custom_datas = [
-    ('models', 'models')  # This bundles the entire 'models' directory into sys._MEIPASS/models
+    ('models', '_internal/models')  # Place models inside _internal where sys._MEIPASS expects it
 ]
-custom_datas += collect_data_files('iopaint')
+
+# iopaint expects its static files (web_app, configs) to be alongside its code (__file__)
+# Since PyInstaller > 6 places code in _internal/iopaint, we must route data files there too.
+for src, dest in collect_data_files('iopaint'):
+    custom_datas.append((src, '_internal/' + dest))
 
 a = Analysis(
     ['main.py'],
